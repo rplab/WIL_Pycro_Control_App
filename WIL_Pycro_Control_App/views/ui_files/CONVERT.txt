@@ -1,0 +1,20 @@
+#Place the UI files in a directory (the following is if you put them in the E drive) and copy paste one or
+#multiple of these lines into the command prompt
+
+
+python -m PyQt5.uic.pyuic E:\AbortDialog.ui -o E:\AbortDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\AcquisitionDialog.ui -o E:\AcquisitionDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\AcquisitionOrderDialog.ui -o E:\AcquisitionOrderDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\AcquisitionRegionsDialog.ui -o E:\AcquisitionRegionsDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\AcquisitionSettingsDialog.ui -o E:\AcquisitionSettingsDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\AdvancedSettingsDialog.ui -o E:\AdvancedSettingsDialog.py -x
+
+python -m PyQt5.uic.pyuic E:\MainWindow.ui -o E:\MainWindow.py -x
+
+python -m PyQt5.uic.pyuic E:\SPIMGalvoDialog.ui -o E:\SPIMGalvoDialog.py -x
+
