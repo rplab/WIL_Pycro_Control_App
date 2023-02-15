@@ -61,19 +61,14 @@ def get_unique_directory(dir: str) -> str:
     return dir
 
 
-def get_free_mb_at_directory(dir: str) -> int:
-    """
-    returns number of available megabytes at directory specified by dir
-    """
-    return shutil.disk_usage(dir)[2]*B_TO_MB
-
-
-def is_enough_space(required_mb: float, dir: str) -> bool:
+def is_enough_space(data_mb, required_percentage, dir: str) -> bool:
     """ 
-    returns True if number of MB available at dir is greater than required_mb
+    returns 
     """
-    free_bytes = get_free_mb_at_directory(dir)
-    return free_bytes > required_mb
+    usage = shutil.disk_usage(dir)
+    total_space = usage[0]
+    used_space = usage[1] + data_mb*MB_TO_B
+    return used_space/total_space < required_percentage
 
 
 def move_files_to_parent(child_dir):

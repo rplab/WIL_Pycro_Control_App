@@ -87,7 +87,6 @@ class ImageAcquisition(ABC):
         # supress attribute error in case datastore doesn't exist
         with contextlib.suppress(AttributeError):
             self._datastore.close()
-
             globals.move_files_to_parent(self._acq_directory.get_directory())
 
     def _create_datastore_with_summary(self, channels: str | list):

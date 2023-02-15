@@ -36,10 +36,8 @@ class AcquisitionController(object):
 
     ## Future Changes:
 
-    - This is by far the most boilerplatey/gross file in the whole application. This
-    could probably be split into multiple controlelrs, one for each dialog (regions, 
-    acquisition, and advanced). In addition, figuring out a better way of connecting
-    buttons and such would cut the code down A LOT. 
+    - This is by far the most boilerplatey/gross file in the whole application. Main way to fix this 
+    is to find a better way to connect PyQt5 buttons to methods.
 
     - I go back and forth on whether the GUI button states should be set in their
     individual action listener events or if there should be a single function that 
@@ -57,12 +55,13 @@ class AcquisitionController(object):
     - User entry validation could be much better. Perhaps creating entry formats would be useful,
     especially for things like directories.
 
-    - _set_table() is awful. There's probably a better way to do this. God I hate GUI code.
+    - _set_table() is awful. There's probably a better way to do this. God I hate coding GUI.
 
     - For now, acq_settings (the model) and the dialogs (view) are initialized inside the controller class.
     Should be fine for now, but if any of these were to be extended, they should probably be added as arguments
     in the constructor (__init__()).
     """
+    
     NUM_DECIMAL_PLACES = 3
 
     def __init__(self):

@@ -4,14 +4,13 @@ import logging
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from acquisition import imaging_sequences
-from hardware import stage, camera, plc
+from hardware import stage
 from models.acquisition.acquisition_user_data import AcquisitionSettings, Fish, Region
 from models.acquisition.acquisition_directory import AcquisitionDirectory
 from utils import exceptions, globals
 from views import AcquisitionDialog
 
-
-class AcquisitionSequence(ABC):
+class AbstractAcquisitionSequence(ABC):
     # Reason for this is that disks write slower when they're full, which will cause timing
     # issues between timepoints.
     PERCENT_DISK_LIMIT = 0.8
@@ -221,74 +220,3 @@ class AcquisitionSequence(ABC):
     def _abort_check(self):
         if self._abort_flag.abort:
             raise exceptions.AbortAcquisitionException
-
-
-class TimeSampAcquisition(AcquisitionSequence):
-    def run_acquisition(self):
-        start_region = self._get_start_region(0)[0]
-        if not start_region:
-            raise exceptions.AbortAcquisitionException("No region in list with imaging enabled")
-        self._acquire_time_points(start_region)
-
-    def _acquire_time_points(self, start_region):
-        self._move_to_region(start_region)
-        for time_point in range(self._acq_settings.num_time_points):
-            self._abort_check()
-            self._time_point_num_update(time_point)
-
-            start_time = time.time()
-            self._acquire_fish()
-
-            if self._acq_settings.time_points_enabled and self._is_time_point_left(time_point):
-                self._move_to_region(start_region)
-                self._wait_for_next_time_point(start_time)
-            else:
-                break
-
-        self._move_to_region(start_region)
-
-    def _acquire_fish(self):
-        for fish_num, fish in enumerate(self._acq_settings.fish_list):
-            self._abort_check()
-            if fish.is_imaging_enabled():
-                self._update_directory(fish)
-                self._fish_num_update(fish_num)
-
-                self._acquire_fish_regions(fish)
-
-
-class SampTimeAcquisition(AcquisitionSequence):
-    def run_acquisition(self):
-        if not self._get_start_region()[0]:
-            raise exceptions.AbortAcquisitionException("No valid region for imaging")
-        self._acquire_fish()
-
-    def _acquire_fish(self):
-        fish_num = 0
-        while True:
-            self._abort_check()
-            start_region, fish_num = self._get_start_region(fish_num)
-            if not start_region or not fish_num:
-                break
-            fish = self._acq_settings.fish_list[fish_num]
-
-            self._update_directory(fish)
-            self._fish_num_update(fish_num)
-
-            self._move_to_region(start_region)
-            self._acquire_time_points(fish, start_region)
-            fish_num += 1
-
-    def _acquire_time_points(self, fish: Fish, start_region: Region):
-        for time_point in range(self._acq_settings.num_time_points):
-            self._abort_check()
-            self._time_point_num_update(time_point)
-
-            start_time = time.time()
-            self._acquire_fish_regions(fish)
-
-            if self._acq_settings.time_points_enabled and self._is_time_point_left(time_point):
-                self._move_to_region(start_region)
-                self._wait_for_next_time_point(start_time)
-            else:
-                break

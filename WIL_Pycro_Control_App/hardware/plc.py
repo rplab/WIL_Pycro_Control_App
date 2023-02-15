@@ -7,12 +7,7 @@ from utils.pycro import core
 _logger = logging.getLogger(__name__)
 
 #device names
-TIGER_NAME = "TigerCommHub"
 PLC_NAME = "PLogic:E:36"
-
-#Tiger Propeties
-_SERIAL = "SerialCommand"
-_SERIAL_NUM_DECIMALS = 6
 
 #PLC property names
 _POINTER_POSITION = "PointerPosition"
@@ -42,8 +37,8 @@ _ADDR_ONE_SHOT = 5
 _ADDR_CONSTANT = 6
 
 #PLC properties
-_PLC_CLOCK_TICKS_PER_MS = 4
-_TRIGGER_PULSE_WIDTH = 3*_PLC_CLOCK_TICKS_PER_MS
+_CLOCK_TICKS_PER_MS = 4
+_TRIGGER_PULSE_WIDTH = 3*_CLOCK_TICKS_PER_MS
 _PLC_CONSTANT_STATE = 1
 
 
@@ -88,11 +83,13 @@ def init_plc_state():
         _set_plc_cell(_ADDR_DELAY_1, _VAL_DELAY, 0, _ADDR_STAGE_TTL, _ADDR_CLK)
         _set_plc_cell(_ADDR_OR, _VAL_OR, 0, _ADDR_DELAY_1, _ADDR_DELAY_2)
         _set_plc_cell(_ADDR_AND, _VAL_AND, 0, _ADDR_OR, _ADDR_STAGE_TTL)
-        _set_plc_cell(_ADDR_DELAY_2, _VAL_DELAY, frame_interval, _ADDR_AND, _ADDR_CLK)
+        _set_plc_cell(_ADDR_DELAY_2, _VAL_DELAY, frame_interval*_CLOCK_TICKS_PER_MS, _ADDR_AND, _ADDR_CLK)
         _set_plc_cell(_ADDR_ONE_SHOT, _VAL_ONE_SHOT, _TRIGGER_PULSE_WIDTH, _ADDR_AND, _ADDR_CLK)
         _set_plc_cell(_ADDR_BNC_1, _VAL_OUTPUT, _ADDR_ONE_SHOT, 0, 0)
         _set_plc_cell(35, _VAL_OUTPUT, _ADDR_STAGE_TTL, 0, 0)
         _set_plc_cell(36, _VAL_OUTPUT, _ADDR_STAGE_TTL, 0, 0)
+
+        _logger.info(f"PLC initialized with frame interval {frame_interval} ms")
 
     return general_exception_handle(init_plc_state, _logger)
 
@@ -116,6 +113,8 @@ def set_plc_for_z_stack(step_size: int, stage_scan_speed):
     def set_plc_for_z_stack():
         wait_for_plc()
 
+        frame_interval = _get_frame_interval(step_size, stage_scan_speed)
+
         _set_plc_pointer_position(_ADDR_DELAY_1)
         _edit_plc_cell_input_1(_ADDR_STAGE_TTL)
 
@@ -124,11 +123,12 @@ def set_plc_for_z_stack(step_size: int, stage_scan_speed):
 
         _set_plc_pointer_position(_ADDR_DELAY_2)
         #_edit_plc_cell_config(_get_frame_interval(step_size, stage_scan_speed))
-        _edit_plc_cell_config(_get_frame_interval(step_size, stage_scan_speed))
-        print(_get_frame_interval(step_size, stage_scan_speed))
+        _edit_plc_cell_config(frame_interval*_CLOCK_TICKS_PER_MS)
 
         _set_plc_cell(35, _VAL_OUTPUT, _ADDR_STAGE_TTL, 0, 0)
         _set_plc_cell(36, _VAL_OUTPUT, _ADDR_STAGE_TTL, 0, 0)
+
+        _logger.info(f"PLC set for z-stack with frame interval of {frame_interval} ms")
 
     return general_exception_handle(set_plc_for_z_stack, _logger)
 
@@ -156,11 +156,13 @@ def set_plc_for_continuous_lsrm(framerate: int):
         _edit_plc_cell_input_2(_ADDR_CONSTANT)
 
         _set_plc_pointer_position(_ADDR_DELAY_2)
-        _edit_plc_cell_config(frame_interval)
+        _edit_plc_cell_config(frame_interval*_CLOCK_TICKS_PER_MS)
         
         _set_plc_pointer_position(_ADDR_CONSTANT)
         _edit_plc_cell_type(_VAL_CONSTANT)
         _edit_plc_cell_config(_PLC_CONSTANT_STATE)
+
+        _logger.info(f"PLC set for continuous LSRM with frame interval of {frame_interval} ms")
 
     return general_exception_handle(set_plc_for_continuous_lsrm, _logger)
 
@@ -220,16 +222,15 @@ def _get_frame_interval(step_size: int, z_scan_speed) -> int:
     """
     #ceil is so the interval is greater than the framerate set in lsrm, which makes it so that 
     #pulses aren't missed by the camera.
-    return int(np.ceil((step_size/(z_scan_speed*globals.UM_TO_MM))*_PLC_CLOCK_TICKS_PER_MS))
+    return np.ceil((step_size/(z_scan_speed*globals.UM_TO_MM))*_CLOCK_TICKS_PER_MS)/_CLOCK_TICKS_PER_MS
 
 
 def _get_frame_interval_from_framerate(framerate):
     """
     Really similar to globals.framerate_to_exposure(), except uses np.ceil instead of floor.
     """
-    return int(np.ceil(1/framerate*globals.S_TO_MS)*_PLC_CLOCK_TICKS_PER_MS)
+    return np.ceil((1/framerate*globals.S_TO_MS)*_CLOCK_TICKS_PER_MS)/_CLOCK_TICKS_PER_MS
 
 
 def get_true_z_stack_stage_speed(z_scan_speed):
-    frame_interval = _get_frame_interval(1, z_scan_speed)
-    return round(1/(frame_interval/_PLC_CLOCK_TICKS_PER_MS)*globals.MM_TO_UM, 3)
+    return round(1/(_get_frame_interval(1, z_scan_speed))*globals.MM_TO_UM, 3)

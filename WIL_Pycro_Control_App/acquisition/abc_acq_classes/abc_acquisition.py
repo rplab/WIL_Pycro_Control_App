@@ -29,19 +29,18 @@ stage TTL signal itself, which I very highly doubt).
 
 import logging
 import threading
-import sys
 import os
-from PyQt5.QtWidgets import QApplication
 import views
+from abc import ABC, abstractmethod
 from acquisition.acquisition_sequences import TimeSampAcquisition, SampTimeAcquisition
 from hardware import stage, camera, plc
 from models.acquisition.acquisition_user_data import AcquisitionSettings, AcquisitionOrder
 from models.acquisition.acquisition_directory import AcquisitionDirectory
 from utils import config, exceptions
-from utils.pycro import core, studio
+from utils.pycro import core
 
 
-class Acquisition(threading.Thread):
+class AbstractAcquisition(threading.Thread, ABC):
     """
     Contains all implementation of imaging sequences. Inherits Thread, so to start acquisition, call
     start().
@@ -52,6 +51,14 @@ class Acquisition(threading.Thread):
         AcquisitionSettings instance that contains all image acquisition settings. 
 
     """
+    @abstractmethod
+    def _init_hardware(self):
+        pass
+    
+    @abstractmethod
+    def _write_settings_to_config(self):
+        pass
+
     def __init__(self, acq_settings: AcquisitionSettings):
         super().__init__()
 
@@ -107,14 +114,6 @@ class Acquisition(threading.Thread):
             self._acquisition_end_hardware_reset()
             self._status_update("Your acquisition was successful!")
 
-    def _initialize_hardware(self):
-        core.stop_sequence_acquisition()
-        core.clear_circular_buffer()
-        core.set_shutter_open(False)
-        core.set_auto_shutter(True)
-        stage.reset_joystick()
-        plc.init_plc_state()
-
     def _acquisition_end_hardware_reset(self):
         try:
             core.stop_sequence_acquisition()
@@ -129,12 +128,12 @@ class Acquisition(threading.Thread):
         """
         Writes current config as acquisition notes at acq_directory.root.
         """
-        self._finalize_settings()
+        self._finalize_acq_settings()
         self._write_settings_to_config()
         config.write_config_file(f"{acq_directory.root}/notes.txt")
 
     #write_acquisition_notes helpers
-    def _finalize_settings(self):
+    def _finalize_acq_settings(self):
         """
         Final update to settings before writing config as notes
         """
@@ -194,29 +193,3 @@ class Acquisition(threading.Thread):
         self._status_update(first_message)
         self._acquisition_end_hardware_reset()
         self._status_update(second_message)
-
-
-class ScriptingAcquisition(Acquisition):
-    """
-    Class that extends Acquisition class for use in scripting without the use of the entire GUI program.
-    Creates its own PyQt5 app.
-
-    Future changes:
-
-    - One annoying part of using this is that the spim settings have to be set without the GUI. The user has to open 
-    the GUI, find the correct galvo settings, and then put those values in the script file. Not sure if there's a good
-    workaround for this...
-    """
-    def __init__(self):
-        self._app = QApplication(sys.argv)
-        super().__init__()
-        #This is to make essential modules accessible on import of just this class.
-        self.studio = studio
-        self.core = core
-        self.config = config
-        self.acq_settings = self._acq_settings
-
-    def run_acquisition(self):
-        self._acq_dialog.show()
-        self.start()
-        self._app.exec_()
